@@ -1,0 +1,3078 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Gestor de Notas Inteligente - Controla o teu desempenho escolar">
+    <meta name="theme-color" content="#4361ee">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Aluno Smart">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%234361ee' width='180' height='180'/><text x='50%' y='50%' font-size='80' fill='white' text-anchor='middle' dominant-baseline='middle'>🎓</text></svg>">
+    <link rel="manifest" href="manifest.json">
+    <title>🎓 Aluno Smart | Gestor de Notas</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js para Gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        /* ══════════════════════════════════════════════════════════════
+           VARIÁVEIS GLOBAIS & RESET
+           ══════════════════════════════════════════════════════════════ */
+        /* ══════════════════════════════════════════════════════════════
+           VARIÁVEIS GLOBAIS & RESET
+           ══════════════════════════════════════════════════════════════ */
+        :root {
+            --primary: #4361ee;
+            --secondary: #3f37c9;
+            --success: #4cc9f0;
+            --danger: #f72585;
+            --bg: #f0f2f9;
+            --card-bg: #ffffff;
+            --text-main: #2b2d42;
+            --text-light: #888;
+            --border-light: #edf2f7;
+            --border-radius: 15px;
+            --transition: 0.3s ease;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif; 
+        }
+        
+        body { 
+            background-color: var(--bg); 
+            color: var(--text-main);
+            padding-bottom: 120px;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           CABEÇALHO - HEADER
+           ══════════════════════════════════════════════════════════════ */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 40px 20px;
+            border-radius: 0 0 30px 30px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 { 
+            font-size: 28px; 
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .header-subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        /* Stats Container */
+        .stats-container {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+            display: block;
+        }
+
+        .stat-value {
+            font-size: 22px; 
+            font-weight: 700;
+            margin-top: 5px;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           CONTAINER PRINCIPAL
+           ══════════════════════════════════════════════════════════════ */
+        .container { 
+            max-width: 500px; 
+            margin: -20px auto 20px; 
+            padding: 0 15px; 
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           CARTÕES DE DISCIPLINAS
+           ══════════════════════════════════════════════════════════════ */
+        .disciplina-card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+            transition: all var(--transition);
+        }
+
+        .disciplina-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Cabeçalho do Card */
+        .nome-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .icon-circle {
+            width: 45px;
+            height: 45px;
+            background: #eef2ff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .nome-disciplina { 
+            font-weight: 700; 
+            color: var(--text-main); 
+            font-size: 16px;
+        }
+
+        /* Grid de Inputs */
+        .inputs-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group { 
+            text-align: center; 
+        }
+
+        .input-group label { 
+            font-size: 11px; 
+            color: var(--text-light); 
+            text-transform: uppercase; 
+            font-weight: 600;
+            display: block;
+            margin-bottom: 6px;
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 10px 5px;
+            border: 2px solid var(--border-light);
+            border-radius: 10px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--primary);
+            transition: var(--transition);
+        }
+
+        input[type="number"]:focus { 
+            border-color: var(--primary); 
+            outline: none; 
+            background: #f8faff; 
+        }
+
+        /* Resultado Visual */
+        .result-bar-bg {
+            height: 8px;
+            background: var(--border-light);
+            border-radius: 10px;
+            overflow: hidden;
+            display: none;
+            margin-top: 12px;
+        }
+
+        .result-bar-fill {
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .status-text {
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 8px;
+            text-align: right;
+            display: none;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           BOTÕES - ESTILOS GERAIS
+           ══════════════════════════════════════════════════════════════ */
+        button {
+            border: none;
+            border-radius: var(--border-radius);
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-family: 'Poppins', sans-serif;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* Botão Remover */
+        .btn-remove {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #fee2e2;
+            color: #dc2626;
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border-radius: 8px;
+        }
+
+        .btn-remove:hover { 
+            background: #fca5a5; 
+        }
+
+        /* Botão Adicionar Disciplina */
+        .btn-add-disciplina {
+            width: 100%;
+            padding: 15px;
+            margin: 20px 0;
+            background: linear-gradient(135deg, var(--success), #3a86ff);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(76, 201, 240, 0.3);
+        }
+
+        .btn-add-disciplina:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(76, 201, 240, 0.4);
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           FOOTER COM BOTÕES FIXOS
+           ══════════════════════════════════════════════════════════════ */
+        .footer-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 -10px 20px rgba(0, 0, 0, 0.05);
+            z-index: 100;
+        }
+
+        .footer-controls button {
+            flex: 1;
+            padding: 14px;
+            font-size: 13px;
+        }
+
+        .btn-save { 
+            background: var(--primary); 
+            color: white; 
+            box-shadow: 0 4px 12px rgba(67, 97, 238, 0.3); 
+        }
+
+        .btn-save:hover {
+            background: var(--secondary);
+        }
+
+        .btn-clear { 
+            background: #f1f5f9; 
+            color: #64748b; 
+        }
+
+        .btn-clear:hover {
+            background: #e2e8f0;
+        }
+
+        /* Status de Resultado */
+        .pass { color: #10b981; }
+        .fail { color: #ef4444; }
+
+        /* ══════════════════════════════════════════════════════════════
+           MODAL - ADICIONAR DISCIPLINA
+           ══════════════════════════════════════════════════════════════ */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 200;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn { 
+            from { opacity: 0; } 
+            to { opacity: 1; } 
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            margin: 50% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            transform: translateY(-50%);
+        }
+
+        .modal h2 { 
+            margin-bottom: 20px; 
+            color: var(--text-main);
+            font-size: 20px;
+        }
+
+        /* Form Groups */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 13px;
+        }
+
+        .form-group input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border-light);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group input[type="text"]:focus {
+            border-color: var(--primary);
+            outline: none;
+            background: #f8faff;
+        }
+
+        /* Emoji Picker */
+        .emoji-picker {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin: 15px 0;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+
+        .emoji-option {
+            font-size: 28px;
+            cursor: pointer;
+            padding: 8px;
+            border: 2px solid transparent;
+            border-radius: 10px;
+            text-align: center;
+            transition: var(--transition);
+            background: #f8faff;
+        }
+
+        .emoji-option:hover { 
+            border-color: var(--primary); 
+            background: #eef2ff; 
+            transform: scale(1.1);
+        }
+
+        .emoji-option.selected { 
+            border-color: var(--primary); 
+            background: #eef2ff;
+            transform: scale(1.15);
+        }
+
+        /* Modal Buttons */
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .modal-buttons button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .btn-confirm { 
+            background: var(--primary); 
+            color: white; 
+        }
+
+        .btn-confirm:hover { 
+            background: var(--secondary); 
+        }
+
+        .btn-cancel { 
+            background: #f1f5f9; 
+            color: #64748b; 
+        }
+
+        .btn-cancel:hover { 
+            background: #e2e8f0; 
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           ABAS DE NAVEGAÇÃO - ANALYTICS
+           ══════════════════════════════════════════════════════════════ */
+        .tabs-container {
+            display: flex;
+            gap: 8px;
+            margin: 20px 0 0 0;
+            padding: 0 15px;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .tabs-container::-webkit-scrollbar {
+            height: 4px;
+        }
+
+        .tabs-container::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .tab-btn {
+            flex-shrink: 0;
+            padding: 12px 16px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-light);
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            bottom: -2px;
+        }
+
+        .tab-btn:hover {
+            color: var(--primary);
+        }
+
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* Analytics Section */
+        .analytics-section {
+            display: none;
+            padding: 20px 15px;
+            animation: fadeIn 0.3s;
+        }
+
+        .analytics-section.active {
+            display: block;
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            position: relative;
+            height: 300px;
+        }
+
+        .chart-title {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: var(--text-main);
+        }
+
+        .chart-subtitle {
+            font-size: 12px;
+            color: var(--text-light);
+            margin-bottom: 10px;
+        }
+
+        .ranking-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: #f8faff;
+            border-radius: 12px;
+            gap: 12px;
+        }
+
+        .ranking-position {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .ranking-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ranking-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-main);
+        }
+
+        .ranking-media {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        .ranking-value {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--primary);
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-light);
+        }
+
+        .no-data-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           AUTENTICAÇÃO & SINCRONIZAÇÃO
+           ══════════════════════════════════════════════════════════════ */
+        .auth-header {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .auth-badge {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: white;
+        }
+
+        .auth-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .auth-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .sync-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #4cc9f0;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .sync-indicator.synced {
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Modal Autenticação */
+        .modal-auth {
+            display: none;
+            position: fixed;
+            z-index: 300;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+
+        .auth-content {
+            background-color: var(--card-bg);
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 350px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .auth-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--border-light);
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 12px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-light);
+            transition: var(--transition);
+        }
+
+        .auth-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+
+        .auth-form input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border: 2px solid var(--border-light);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .auth-form input:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+
+        .auth-form button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .auth-form button:hover {
+            background: var(--secondary);
+        }
+
+        .auth-error {
+            color: #dc2626;
+            font-size: 12px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        /* Modal Compartilhar */
+        .modal-compartilhar {
+            display: none;
+            position: fixed;
+            z-index: 300;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+
+        .share-content {
+            background-color: var(--card-bg);
+            margin: 20% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .share-content h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .share-section {
+            margin-bottom: 25px;
+        }
+
+        .share-section h3 {
+            font-size: 14px;
+            color: var(--text-light);
+            margin-bottom: 12px;
+        }
+
+        .qr-code {
+            display: flex;
+            justify-content: center;
+            margin: 15px 0;
+        }
+
+        .share-link {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .share-link input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid var(--border-light);
+            border-radius: 10px;
+            font-size: 12px;
+            font-family: monospace;
+            background: #f8faff;
+        }
+
+        .share-link button {
+            padding: 10px 15px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .share-link button:hover {
+            background: var(--secondary);
+        }
+
+        .share-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .share-buttons button {
+            flex: 1;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .share-buttons button:hover {
+            background: var(--secondary);
+        }
+
+        .share-close {
+            width: 100%;
+            margin-top: 15px;
+            background: #f1f5f9;
+            color: #64748b;
+        }
+
+        .share-close:hover {
+            background: #e2e8f0;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           CALENDÁRIO, TAREFAS, HORÁRIO
+           ══════════════════════════════════════════════════════════════ */
+        .mini-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            padding: 0 5px;
+        }
+
+        .mini-tab {
+            flex-shrink: 0;
+            padding: 8px 12px;
+            background: #f1f5f9;
+            border: none;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-light);
+        }
+
+        .mini-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .mini-tab:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* Calendário */
+        .calendar-container {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .calendar-header button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8faff;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: #eef2ff;
+        }
+
+        .calendar-day.other-month {
+            opacity: 0.3;
+            background: transparent;
+        }
+
+        .calendar-day.today {
+            background: var(--primary);
+            color: white;
+        }
+
+        .calendar-day.has-event::after {
+            content: '';
+            position: absolute;
+            bottom: 4px;
+            width: 4px;
+            height: 4px;
+            background: #f72585;
+            border-radius: 50%;
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            font-size: 11px;
+            text-align: center;
+            color: var(--text-light);
+        }
+
+        /* Tarefas */
+        .tarefas-container {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .tarefa-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background: #f8faff;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            align-items: flex-start;
+        }
+
+        .tarefa-checkbox {
+            width: 20px;
+            height: 20px;
+            padding: 0;
+            cursor: pointer;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .tarefa-info {
+            flex: 1;
+        }
+
+        .tarefa-titulo {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .tarefa-desc {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        .tarefa-badges {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: var(--primary);
+            color: white;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .badge.urgente {
+            background: #f72585;
+        }
+
+        .tarefa-btn {
+            padding: 4px 8px;
+            background: #fee2e2;
+            color: #dc2626;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .tarefa-btn:hover {
+            background: #fca5a5;
+        }
+
+        /* Adicionar Tarefa */
+        .add-tarefa-form {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .add-tarefa-form input,
+        .add-tarefa-form select {
+            padding: 10px;
+            border: 2px solid var(--border-light);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .add-tarefa-form button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        /* Horário */
+        .horario-container {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .horario-grid {
+            display: grid;
+            gap: 10px;
+        }
+
+        .horario-aula {
+            display: flex;
+            gap: 12px;
+            padding: 12px;
+            background: linear-gradient(135deg, #eef2ff, #f8faff);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .horario-hora {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--primary);
+            min-width: 50px;
+        }
+
+        .horario-info {
+            flex: 1;
+        }
+
+        .horario-disciplina {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .horario-sala {
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        .horario-addedit {
+            font-size: 11px;
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .add-horario-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .add-horario-form input,
+        .add-horario-form select {
+            padding: 10px;
+            border: 2px solid var(--border-light);
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        .add-horario-form button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            grid-column: span 4;
+        }
+
+        /* Prova Badge */
+        .prova-badge {
+            display: inline-block;
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        /* ══════════════════════════════════════════════════════════════
+           RESPONSIVIDADE
+           ══════════════════════════════════════════════════════════════ */
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .stats-container {
+                gap: 10px;
+            }
+
+            .footer-controls {
+                padding: 10px;
+                gap: 8px;
+            }
+
+            .footer-controls button {
+                padding: 12px 8px;
+                font-size: 12px;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+
+            .inputs-grid {
+                gap: 8px;
+            }
+
+            input[type="number"] {
+                padding: 8px 3px;
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     CABEÇALHO COM DASHBOARD
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="header">
+    <div class="auth-header">
+        <span class="sync-indicator" id="sync-status"></span>
+        <span id="auth-status" style="font-size: 12px;">Offline</span>
+        <button class="auth-btn" onclick="abrirModalAuth()">🔐 Entrar</button>
+    </div>
+
+    <h1>🎓 Meu Desempenho</h1>
+    <p class="header-subtitle">Controla as tuas notas com facilidade</p>
+    
+    <div class="stats-container">
+        <div class="stat-item">
+            <span class="stat-label">Média Geral</span>
+            <div class="stat-value" id="media-geral">0.0</div>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Aprovadas</span>
+            <div class="stat-value" id="cont-aprovadas" style="color: #4cc9f0;">0</div>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Total</span>
+            <div class="stat-value" id="total-disciplinas">0</div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     LISTA DE DISCIPLINAS
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="container" id="lista-disciplinas">
+    <!-- As disciplinas serão renderizadas aqui dinamicamente -->
+</div>
+
+<!-- Botão para Adicionar Nova Disciplina -->
+<div class="container">
+    <button class="btn-add-disciplina" onclick="abrirModal()">➕ Adicionar Disciplina</button>
+    <button class="btn-add-disciplina" style="background: linear-gradient(135deg, #667eea, #764ba2);" onclick="abrirModalCompartilhar()">
+        🔗 Compartilhar com Pais/Professores
+    </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     ANALYTICS - GRÁFICOS E ANÁLISES
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="tabs-container" id="tabs-analytics">
+    <button class="tab-btn active" onclick="mudarAbas('desempenho')">📊 Desempenho</button>
+    <button class="tab-btn" onclick="mudarAbas('trimestres')">📈 Trimestres</button>
+    <button class="tab-btn" onclick="mudarAbas('ranking')">🏆 Ranking</button>
+    <button class="tab-btn" onclick="mudarAbas('tendencia')">📉 Tendência</button>
+</div>
+
+<!-- Aba 1: Desempenho por Disciplina -->
+<div id="aba-desempenho" class="analytics-section active">
+    <div class="chart-container">
+        <div class="chart-title">📊 Desempenho por Disciplina</div>
+        <div class="chart-subtitle">Média de cada disciplina</div>
+        <canvas id="chart-desempenho"></canvas>
+    </div>
+</div>
+
+<!-- Aba 2: Comparação de Trimestres -->
+<div id="aba-trimestres" class="analytics-section">
+    <div class="chart-container">
+        <div class="chart-title">📈 Comparação de Trimestres</div>
+        <div class="chart-subtitle">Evolução das notas ao longo do ano</div>
+        <canvas id="chart-trimestres"></canvas>
+    </div>
+</div>
+
+<!-- Aba 3: Ranking -->
+<div id="aba-ranking" class="analytics-section">
+    <div class="chart-container">
+        <div class="chart-title">🏆 Melhores Disciplinas</div>
+        <div id="ranking-top" class="ranking-list"></div>
+    </div>
+    <div class="chart-container">
+        <div class="chart-title">📉 Disciplinas com Mais Dificuldade</div>
+        <div id="ranking-bottom" class="ranking-list"></div>
+    </div>
+</div>
+
+<!-- Aba 4: Tendência -->
+<div id="aba-tendencia" class="analytics-section">
+    <div class="chart-container">
+        <div class="chart-title">📉 Tendência de Notas</div>
+        <div class="chart-subtitle">Está melhorando ou piorando?</div>
+        <canvas id="chart-tendencia"></canvas>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     EXTRA - CALENDÁRIO, TAREFAS, HORÁRIO
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<!-- Mini Tabs para Calendário, Tarefas, Horário -->
+<div class="container" style="margin-top: 20px;">
+    <div class="mini-tabs">
+        <button class="mini-tab active" onclick="mudarMinTab('calendario')">🗓️ Calendário</button>
+        <button class="mini-tab" onclick="mudarMinTab('tarefas')">✅ Tarefas</button>
+        <button class="mini-tab" onclick="mudarMinTab('horario')">⏰ Horário</button>
+    </div>
+</div>
+
+<!-- Calendário de Provas -->
+<div id="mini-calendario" class="container mini-section active">
+    <div class="calendar-container">
+        <div class="calendar-header">
+            <button onclick="mesAnterior()">←</button>
+            <h3 id="calendar-mes-ano" style="margin: 0; font-size: 16px;"></h3>
+            <button onclick="mesProximo()">→</button>
+        </div>
+
+        <div class="calendar-weekdays">
+            <div>Seg</div>
+            <div>Ter</div>
+            <div>Qua</div>
+            <div>Qui</div>
+            <div>Sex</div>
+            <div>Sab</div>
+            <div>Dom</div>
+        </div>
+
+        <div class="calendar-grid" id="calendar-dias"></div>
+
+        <div style="background: #f8faff; padding: 12px; border-radius: 10px; font-size: 13px;">
+            <div style="font-weight: 600; margin-bottom: 8px;">📋 Adicionar Prova</div>
+            <div style="display: flex; gap: 8px;">
+                <input type="date" id="prova-data" style="flex: 1; padding: 8px; border: 2px solid var(--border-light); border-radius: 8px; font-size: 12px;">
+                <input type="text" id="prova-disciplina" placeholder="Disciplina" style="flex: 1; padding: 8px; border: 2px solid var(--border-light); border-radius: 8px; font-size: 12px;">
+                <button onclick="adicionarProva()" style="background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; flex-shrink: 0;">Adicionar</button>
+            </div>
+        </div>
+
+        <div id="provas-lista" style="margin-top: 15px;"></div>
+    </div>
+</div>
+
+<!-- Tarefas -->
+<div id="mini-tarefas" class="container mini-section" style="display: none;">
+    <div class="tarefas-container">
+        <div style="font-weight: 600; margin-bottom: 12px; font-size: 16px;">✅ Tarefas</div>
+        
+        <div class="add-tarefa-form">
+            <input type="text" id="tarefa-titulo" placeholder="O que precisa fazer?" style="flex: 1;">
+            <select id="tarefa-disciplina" style="flex: 1;">
+                <option value="">Disciplina</option>
+            </select>
+            <select id="tarefa-prioridade" style="flex: 1;">
+                <option value="normal">Normal</option>
+                <option value="urgente">⚠️ Urgente</option>
+            </select>
+            <button onclick="adicionarTarefa()" style="flex: 0.8;">➕ Adicionar</button>
+        </div>
+
+        <div id="tarefas-lista"></div>
+    </div>
+</div>
+
+<!-- Horário -->
+<div id="mini-horario" class="container mini-section" style="display: none;">
+    <div class="horario-container">
+        <div style="font-weight: 600; margin-bottom: 12px; font-size: 16px;">⏰ Horário Escolar</div>
+
+        <div class="add-horario-form">
+            <input type="time" id="horario-hora" placeholder="Hora">
+            <input type="text" id="horario-disciplina" placeholder="Disciplina">
+            <input type="text" id="horario-sala" placeholder="Sala">
+            <select id="horario-dia" style="margin: 0;">
+                <option value="seg">Segunda</option>
+                <option value="ter">Terça</option>
+                <option value="qua">Quarta</option>
+                <option value="qui">Quinta</option>
+                <option value="sex">Sexta</option>
+            </select>
+            <button onclick="adicionarHorario()" style="grid-column: span 1;">➕ Adicionar</button>
+        </div>
+
+        <div id="horario-lista"></div>
+    </div>
+</div>
+     MODAL - ADICIONAR NOVA DISCIPLINA
+     ═══════════════════════════════════════════════════════════════════ -->
+<div id="modal-adicionar" class="modal">
+    <div class="modal-content">
+        <h2>➕ Nova Disciplina</h2>
+        
+        <div class="form-group">
+            <label>Nome da Disciplina:</label>
+            <input 
+                type="text" 
+                id="input-nome-disc" 
+                placeholder="Ex: Arte, Filosofia, Sociologia..."
+                onkeypress="if(event.key==='Enter') adicionarDisciplina()"
+            >
+        </div>
+
+        <div class="form-group">
+            <label>📌 Escolha um Emoji:</label>
+            <div class="emoji-picker" id="emoji-picker">
+                <!-- Emojis populares serão inseridos aqui -->
+            </div>
+            
+            <label style="margin-top: 12px;">Ou Cole um Emoji Personalizado:</label>
+            <input 
+                type="text" 
+                id="input-emoji-custom" 
+                placeholder="Ex: 🎬, 🏥, ⚔️"
+                maxlength="2"
+            >
+        </div>
+
+        <div class="modal-buttons">
+            <button class="btn-cancel" onclick="fecharModal()">Cancelar</button>
+            <button class="btn-confirm" onclick="adicionarDisciplina()">✅ Adicionar</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     MODAL - AUTENTICAÇÃO
+     ═══════════════════════════════════════════════════════════════════ -->
+<div id="modal-auth" class="modal-auth">
+    <div class="auth-content">
+        <h2>🔐 Aluno Smart Cloud</h2>
+
+        <div class="auth-tabs">
+            <button class="auth-tab active" onclick="mudaAbaPw('login')">Entrar</button>
+            <button class="auth-tab" onclick="mudaAbaPw('signup')">Criar Conta</button>
+        </div>
+
+        <!-- Formulário Login -->
+        <form id="form-login" class="auth-form active">
+            <input type="email" id="login-email" placeholder="Email" required>
+            <input type="password" id="login-password" placeholder="Senha" required>
+            <div class="auth-error" id="login-error"></div>
+            <button type="button" onclick="fazerLogin()">Entrar</button>
+        </form>
+
+        <!-- Formulário SignUp -->
+        <form id="form-signup" class="auth-form">
+            <input type="text" id="signup-nome" placeholder="Teu nome" required>
+            <input type="email" id="signup-email" placeholder="Email" required>
+            <input type="password" id="signup-password" placeholder="Senha (mín. 6 caracteres)" required>
+            <div class="auth-error" id="signup-error"></div>
+            <button type="button" onclick="fazerSignup()">Criar Conta</button>
+        </form>
+
+        <button class="auth-btn" style="width: 100%; margin-top: 15px;" onclick="fecharModalAuth()">Cancelar</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     MODAL - COMPARTILHAR
+     ═══════════════════════════════════════════════════════════════════ -->
+<div id="modal-compartilhar" class="modal-compartilhar">
+    <div class="share-content">
+        <h2>🔗 Compartilhar Notas</h2>
+
+        <div class="share-section">
+            <h3>📱 Código QR</h3>
+            <div class="qr-code" id="qr-code-container"></div>
+            <p style="font-size: 12px; color: var(--text-light);">Os pais/professores podem escanear para ver as tuas notas</p>
+        </div>
+
+        <div class="share-section" id="share-link-section" style="display: none;">
+            <h3>🔗 Link de Visualização</h3>
+            <div class="share-link">
+                <input type="text" id="share-link-input" readonly>
+                <button onclick="copiarLink()">Copiar</button>
+            </div>
+        </div>
+
+        <div class="share-buttons">
+            <button onclick="compartilharWhatsApp()" style="background: #25D366;">WhatsApp</button>
+            <button onclick="compartilharEmail()">Email 📧</button>
+        </div>
+
+        <button class="share-close" onclick="fecharModalCompartilhar()">Fechar</button>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     FOOTER COM CONTROLES
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="footer-controls">
+    <button class="btn-clear" onclick="limparDados()">🗑️ Limpar</button>
+    <button class="btn-save" onclick="calcularEGuardar()">💾 Guardar</button>
+    <button class="btn-clear" id="btn-logout" style="display: none;" onclick="fazerLogout()">🚪 Sair</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     JAVASCRIPT - LÓGICA PRINCIPAL
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+    // ════════════════════════════════════════════════════════════════
+    // CONFIGURAÇÃO FIREBASE
+    // ════════════════════════════════════════════════════════════════
+    const firebaseConfig = {
+        apiKey: "AIzaSyC-9B-2xU_1Z8vL3H9O4P5Q6R7S8T9U0V1",
+        authDomain: "aluno-smart.firebaseapp.com",
+        projectId: "aluno-smart-app",
+        storageBucket: "aluno-smart-app.appspot.com",
+        messagingSenderId: "123456789",
+        appId: "1:123456789:web:abcdef1234567890"
+    };
+
+    // Inicializar Firebase (desabilitar se não configurar projeto)
+    let firebase = null;
+    let db = null;
+    let auth = null;
+
+    try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        auth = firebase.auth();
+    } catch(e) {
+        console.log("⚠️ Firebase não configurado - usando localStorage apenas");
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // CONFIGURAÇÃO INICIAL
+    // ════════════════════════════════════════════════════════════════
+    const CONFIG = {
+        LOCAL_KEY_DISCIPLINAS: 'disciplinasElite',
+        LOCAL_KEY_NOTAS: 'notasElite',
+        LOCAL_KEY_USER: 'userElite',
+        EMOJIS_PADRAO: ['📚', '📖', '🌎', '🏃', '📐', '⚛️', '🧪', '⚡', '💡', '💻', '🖥️', '📱', '🤝', '✏️', '🎨', '🎭', '🎵', '🔬', '📊', '📈', '🌱', '⚙️', '🔧', '🏆'],
+        DISCIPLINAS_DEFAULT: [
+            { nome: "Português", icon: "📚" },
+            { nome: "FAÍ", icon: "🤝" },
+            { nome: "Inglês", icon: "🌎" },
+            { nome: "Educação Física", icon: "🏃" },
+            { nome: "Matemática", icon: "📐" },
+            { nome: "Física", icon: "⚛️" },
+            { nome: "Química", icon: "🧪" },
+            { nome: "Electrotecnia", icon: "⚡" },
+            { nome: "Empreendedorismo", icon: "💡" },
+            { nome: "TLP", icon: "💻" },
+            { nome: "SEAC", icon: "🖥️" },
+            { nome: "TIC", icon: "📱" }
+        ],
+        CLOUD_ENABLED: typeof firebase !== 'undefined' && firebase !== null
+    };
+
+    // ════════════════════════════════════════════════════════════════
+    // ESTADO DA APLICAÇÃO
+    // ════════════════════════════════════════════════════════════════
+    let APP = {
+        disciplinas: [],
+        emojiSelecionado: '📚',
+        charts: {
+            desempenho: null,
+            trimestres: null,
+            tendencia: null
+        },
+        user: null,
+        userId: null,
+        isLoggedIn: false,
+        shareToken: null
+    };
+
+    // ════════════════════════════════════════════════════════════════
+    // GERENCIAMENTO DE ABAS - ANALYTICS
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Muda entre as diferentes abas de análise
+     */
+    function mudarAbas(novaAba) {
+        // Esconder todas as seções
+        document.querySelectorAll('.analytics-section').forEach(sec => {
+            sec.classList.remove('active');
+        });
+
+        // Desativar todos os botões
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Mostrar seção selecionada
+        const abaSelecionada = document.getElementById(`aba-${novaAba}`);
+        if(abaSelecionada) {
+            abaSelecionada.classList.add('active');
+        }
+
+        // Ativar botão selecionado
+        event.target.classList.add('active');
+
+        // Renderizar conteúdo dinâmico
+        if(novaAba === 'desempenho') {
+            renderizarGraficoDesempenho();
+        } else if(novaAba === 'trimestres') {
+            renderizarGraficoTrimestres();
+        } else if(novaAba === 'ranking') {
+            renderizarRanking();
+        } else if(novaAba === 'tendencia') {
+            renderizarGraficoTendencia();
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // GRÁFICO DE DESEMPENHO POR DISCIPLINA
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Renderiza gráfico de desempenho por disciplina
+     */
+    function renderizarGraficoDesempenho() {
+        const notas = carregarNotasAtual();
+        if(!notas || notas.length === 0) {
+            mostrarSemDados('chart-desempenho');
+            return;
+        }
+
+        const dados = APP.disciplinas.map((disc, i) => {
+            const n1 = parseFloat(notas[i]?.n1) || 0;
+            const n2 = parseFloat(notas[i]?.n2) || 0;
+            const n3 = parseFloat(notas[i]?.n3) || 0;
+            return (n1 + n2 + n3) / 3;
+        }).filter((m, i) => {
+            const n = notas[i];
+            return n && (n.n1 !== "" && n.n2 !== "" && n.n3 !== "");
+        });
+
+        if(dados.length === 0) {
+            mostrarSemDados('chart-desempenho');
+            return;
+        }
+
+        const ctx = document.getElementById('chart-desempenho')?.getContext('2d');
+        if(!ctx) return;
+
+        // Destruir gráfico anterior
+        if(APP.charts.desempenho) {
+            APP.charts.desempenho.destroy();
+        }
+
+        const labels = APP.disciplinas.filter((_, i) => {
+            const n = notas[i];
+            return n && (n.n1 !== "" && n.n2 !== "" && n.n3 !== "");
+        }).map(d => d.nome);
+
+        APP.charts.desempenho = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Média per Disciplina',
+                    data: dados,
+                    backgroundColor: dados.map(m => m >= 10 ? '#4cc9f0' : '#f72585'),
+                    borderColor: dados.map(m => m >= 10 ? '#2a9dd6' : '#e01b54'),
+                    borderWidth: 2,
+                    borderRadius: 10,
+                    hoverBackgroundColor: dados.map(m => m >= 10 ? '#3aa8d8' : '#e01b54')
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 20,
+                        ticks: { color: '#888', font: { size: 11 } },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    x: {
+                        ticks: { color: '#888', font: { size: 11 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // GRÁFICO DE COMPARAÇÃO DE TRIMESTRES
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Renderiza gráfico de comparação de trimestres
+     */
+    function renderizarGraficoTrimestres() {
+        const notas = carregarNotasAtual();
+        if(!notas || notas.length === 0) {
+            mostrarSemDados('chart-trimestres');
+            return;
+        }
+
+        const tri1 = [];
+        const tri2 = [];
+        const tri3 = [];
+
+        notas.forEach((nota, i) => {
+            if(nota.n1 !== "") tri1.push(parseFloat(nota.n1));
+            if(nota.n2 !== "") tri2.push(parseFloat(nota.n2));
+            if(nota.n3 !== "") tri3.push(parseFloat(nota.n3));
+        });
+
+        if(tri1.length === 0 && tri2.length === 0 && tri3.length === 0) {
+            mostrarSemDados('chart-trimestres');
+            return;
+        }
+
+        const mediaTri1 = tri1.length > 0 ? tri1.reduce((a, b) => a + b, 0) / tri1.length : 0;
+        const mediaTri2 = tri2.length > 0 ? tri2.reduce((a, b) => a + b, 0) / tri2.length : 0;
+        const mediaTri3 = tri3.length > 0 ? tri3.reduce((a, b) => a + b, 0) / tri3.length : 0;
+
+        const ctx = document.getElementById('chart-trimestres')?.getContext('2d');
+        if(!ctx) return;
+
+        // Destruir gráfico anterior
+        if(APP.charts.trimestres) {
+            APP.charts.trimestres.destroy();
+        }
+
+        APP.charts.trimestres = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['1º Trimestre', '2º Trimestre', '3º Trimestre'],
+                datasets: [{
+                    label: 'Média Geral',
+                    data: [mediaTri1, mediaTri2, mediaTri3],
+                    borderColor: '#4361ee',
+                    backgroundColor: 'rgba(67, 97, 238, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#4361ee',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: true, position: 'top' }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 20,
+                        ticks: { color: '#888', font: { size: 11 } },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    x: {
+                        ticks: { color: '#888', font: { size: 11 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // RANKING DE DISCIPLINAS
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Renderiza o ranking de melhores e piores disciplinas
+     */
+    function renderizarRanking() {
+        const notas = carregarNotasAtual();
+        if(!notas || notas.length === 0) {
+            document.getElementById('ranking-top').innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p>Sem dados para mostrar</p></div>';
+            document.getElementById('ranking-bottom').innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p>Sem dados para mostrar</p></div>';
+            return;
+        }
+
+        // Calcular médias
+        const rankings = APP.disciplinas.map((disc, i) => {
+            const n = notas[i];
+            if(!n || (n.n1 === "" && n.n2 === "" && n.n3 === "")) {
+                return null;
+            }
+            const n1 = parseFloat(n.n1) || 0;
+            const n2 = parseFloat(n.n2) || 0;
+            const n3 = parseFloat(n.n3) || 0;
+            const media = (n1 + n2 + n3) / 3;
+            return {
+                nome: disc.nome,
+                icon: disc.icon,
+                media: media
+            };
+        }).filter(r => r !== null);
+
+        if(rankings.length === 0) {
+            document.getElementById('ranking-top').innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p>Sem dados para mostrar</p></div>';
+            document.getElementById('ranking-bottom').innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p>Sem dados para mostrar</p></div>';
+            return;
+        }
+
+        // Ordenar
+        const melhores = [...rankings].sort((a, b) => b.media - a.media);
+        const piores = [...rankings].sort((a, b) => a.media - b.media);
+
+        // Renderizar melhores
+        const topHTML = melhores.slice(0, 5).map((r, idx) => `
+            <div class="ranking-item">
+                <div class="ranking-position" style="background: ${idx === 0 ? '#FFD700' : idx === 1 ? '#C0C0C0' : idx === 2 ? '#CD7F32' : '#4361ee'};">
+                    ${idx < 3 ? ['🥇', '🥈', '🥉'][idx] : idx + 1}
+                </div>
+                <div class="ranking-info">
+                    <div class="ranking-name">${r.icon} ${r.nome}</div>
+                    <div class="ranking-media">${r.media.toFixed(1)}/20</div>
+                </div>
+                <div class="ranking-value" style="color: #4cc9f0;">${r.media.toFixed(1)}</div>
+            </div>
+        `).join('');
+
+        // Renderizar piores
+        const bottomHTML = piores.slice(0, 5).map((r, idx) => `
+            <div class="ranking-item">
+                <div class="ranking-position" style="background: #f72585;">
+                    ${idx + 1}
+                </div>
+                <div class="ranking-info">
+                    <div class="ranking-name">${r.icon} ${r.nome}</div>
+                    <div class="ranking-media">${r.media.toFixed(1)}/20</div>
+                </div>
+                <div class="ranking-value" style="color: #f72585;">${r.media.toFixed(1)}</div>
+            </div>
+        `).join('');
+
+        document.getElementById('ranking-top').innerHTML = topHTML;
+        document.getElementById('ranking-bottom').innerHTML = bottomHTML;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // GRÁFICO DE TENDÊNCIA
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Renderiza gráfico de tendência (está melhorando?)
+     */
+    function renderizarGraficoTendencia() {
+        const notas = carregarNotasAtual();
+        if(!notas || notas.length === 0) {
+            mostrarSemDados('chart-tendencia');
+            return;
+        }
+
+        // Calcular a progressão: 1ºTri -> 2ºTri -> 3ºTri
+        let progressoes = [];
+
+        APP.disciplinas.forEach((disc, i) => {
+            const n = notas[i];
+            if(n && n.n1 !== "" && n.n2 !== "" && n.n3 !== "") {
+                progressoes.push({
+                    nome: disc.nome,
+                    icon: disc.icon,
+                    tri1: parseFloat(n.n1),
+                    tri2: parseFloat(n.n2),
+                    tri3: parseFloat(n.n3),
+                    tendencia: parseFloat(n.n3) - parseFloat(n.n1) // Melhora ou piora
+                });
+            }
+        });
+
+        if(progressoes.length === 0) {
+            mostrarSemDados('chart-tendencia');
+            return;
+        }
+
+        // Calcular média geral de cada trimestre
+        const mediaTri1 = progressoes.reduce((a, b) => a + b.tri1, 0) / progressoes.length;
+        const mediaTri2 = progressoes.reduce((a, b) => a + b.tri2, 0) / progressoes.length;
+        const mediaTri3 = progressoes.reduce((a, b) => a + b.tri3, 0) / progressoes.length;
+
+        const tendenciaGeral = ((mediaTri3 - mediaTri1) / mediaTri1 * 100).toFixed(0);
+        const status = mediaTri3 > mediaTri1 ? '📈 Melhorando' : mediaTri3 < mediaTri1 ? '📉 Piorando' : '➡️ Estável';
+
+        const ctx = document.getElementById('chart-tendencia')?.getContext('2d');
+        if(!ctx) return;
+
+        // Destruir gráfico anterior
+        if(APP.charts.tendencia) {
+            APP.charts.tendencia.destroy();
+        }
+
+        // Dados de cada disciplina
+        const labels = progressoes.map(p => p.icon + ' ' + p.nome);
+        const tri1Data = progressoes.map(p => p.tri1);
+        const tri2Data = progressoes.map(p => p.tri2);
+        const tri3Data = progressoes.map(p => p.tri3);
+
+        APP.charts.tendencia = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '1º Trimestre',
+                        data: tri1Data,
+                        backgroundColor: 'rgba(67, 97, 238, 0.5)',
+                        borderColor: '#4361ee',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '2º Trimestre',
+                        data: tri2Data,
+                        backgroundColor: 'rgba(76, 201, 240, 0.5)',
+                        borderColor: '#4cc9f0',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '3º Trimestre',
+                        data: tri3Data,
+                        backgroundColor: 'rgba(76, 201, 240, 0.8)',
+                        borderColor: '#4cc9f0',
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.x.toFixed(1);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 20,
+                        ticks: { color: '#888', font: { size: 11 } },
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                    },
+                    y: {
+                        ticks: { color: '#888', font: { size: 10 } },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // Adicionar subtitle com tendência
+        const chartContainer = document.getElementById('chart-tendencia')?.parentElement;
+        if(chartContainer) {
+            let subtitle = chartContainer.querySelector('.tendencia-status');
+            if(!subtitle) {
+                subtitle = document.createElement('div');
+                subtitle.className = 'tendencia-status';
+                chartContainer.appendChild(subtitle);
+            }
+            subtitle.innerHTML = `<strong>${status}</strong> - Diferença: ${tendenciaGeral >= 0 ? '+' : ''}${tendenciaGeral}%`;
+            subtitle.style.textAlign = 'center';
+            subtitle.style.marginTop = '15px';
+            subtitle.style.fontSize = '14px';
+            subtitle.style.fontWeight = '600';
+            subtitle.style.color = mediaTri3 > mediaTri1 ? '#4cc9f0' : mediaTri3 < mediaTri1 ? '#f72585' : '#888';
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // FUNÇÕES AUXILIARES - ANALYTICS
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Carrega as notas atuais do localStorage
+     */
+    function carregarNotasAtual() {
+        const salvo = localStorage.getItem(CONFIG.LOCAL_KEY_NOTAS);
+        return salvo ? JSON.parse(salvo) : null;
+    }
+
+    /**
+     * Mostra mensagem de sem dados
+     */
+    function mostrarSemDados(canvasId) {
+        const container = document.getElementById(canvasId)?.parentElement;
+        if(container) {
+            container.innerHTML = '<div class="no-data"><div class="no-data-icon">📭</div><p>Adiciona notas para ver os gráficos</p></div>';
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // AUTENTICAÇÃO & SINCRONIZAÇÃO NA NUVEM
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Abre o modal de autenticação
+     */
+    function abrirModalAuth() {
+        document.getElementById('modal-auth').style.display = 'block';
+    }
+
+    /**
+     * Fecha o modal de autenticação
+     */
+    function fecharModalAuth() {
+        document.getElementById('modal-auth').style.display = 'none';
+    }
+
+    /**
+     * Muda entre as abas login/signup
+     */
+    function mudaAbaPw(aba) {
+        document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+        document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+        document.getElementById(`form-${aba}`).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    /**
+     * Realiza login do utilizador
+     */
+    async function fazerLogin() {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const errorDiv = document.getElementById('login-error');
+
+        if(!email || !password) {
+            errorDiv.textContent = '⚠️ Preenche todos os campos!';
+            return;
+        }
+
+        try {
+            if(CONFIG.CLOUD_ENABLED && auth) {
+                const result = await auth.signInWithEmailAndPassword(email, password);
+                APP.user = result.user;
+                APP.userId = result.user.uid;
+                APP.isLoggedIn = true;
+                
+                // Carregar dados da nuvem
+                await carregarDadosNuvem();
+                atualizarStatusAuth();
+                fecharModalAuth();
+                alert('✅ Login realizado com sucesso!');
+            } else {
+                // Fallback local
+                localStorage.setItem(CONFIG.LOCAL_KEY_USER, JSON.stringify({ email, nome: 'Utilizador' }));
+                APP.isLoggedIn = true;
+                APP.userId = email;
+                atualizarStatusAuth();
+                fecharModalAuth();
+                alert('✅ Login (modo local) realizado!');
+            }
+        } catch(error) {
+            errorDiv.textContent = '❌ ' + (error.message || 'Erro ao fazer login');
+        }
+    }
+
+    /**
+     * Cria uma nova conta
+     */
+    async function fazerSignup() {
+        const nome = document.getElementById('signup-nome').value;
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        const errorDiv = document.getElementById('signup-error');
+
+        if(!nome || !email || !password) {
+            errorDiv.textContent = '⚠️ Preenche todos os campos!';
+            return;
+        }
+
+        if(password.length < 6) {
+            errorDiv.textContent = '⚠️ Senha deve ter mínimo 6 caracteres!';
+            return;
+        }
+
+        try {
+            if(CONFIG.CLOUD_ENABLED && auth) {
+                const result = await auth.createUserWithEmailAndPassword(email, password);
+                APP.user = result.user;
+                APP.userId = result.user.uid;
+                APP.isLoggedIn = true;
+
+                // Guardar dados do utilizador na nuvem
+                await db.collection('utilizadores').doc(APP.userId).set({
+                    nome: nome,
+                    email: email,
+                    criadoEm: new Date(),
+                    disciplinas: APP.disciplinas,
+                    notas: []
+                });
+
+                atualizarStatusAuth();
+                fecharModalAuth();
+                alert('✅ Conta criada com sucesso!');
+            } else {
+                localStorage.setItem(CONFIG.LOCAL_KEY_USER, JSON.stringify({ email, nome }));
+                APP.isLoggedIn = true;
+                APP.userId = email;
+                atualizarStatusAuth();
+                fecharModalAuth();
+                alert('✅ Conta criada (modo local)!');
+            }
+        } catch(error) {
+            errorDiv.textContent = '❌ ' + (error.message || 'Erro ao criar conta');
+        }
+    }
+
+    /**
+     * Faz logout do utilizador
+     */
+    async function fazerLogout() {
+        if(CONFIG.CLOUD_ENABLED && auth) {
+            await auth.signOut();
+        }
+        APP.user = null;
+        APP.userId = null;
+        APP.isLoggedIn = false;
+        atualizarStatusAuth();
+        alert('✅ Logout realizado!');
+    }
+
+    /**
+     * Atualiza o status de autenticação na UI
+     */
+    function atualizarStatusAuth() {
+        const authStatus = document.getElementById('auth-status');
+        const btnsAuth = document.querySelector('.auth-btn');
+        const btnLogout = document.getElementById('btn-logout');
+
+        if(APP.isLoggedIn) {
+            authStatus.textContent = '✅ Online';
+            btnsAuth.style.display = 'none';
+            btnLogout.style.display = 'block';
+            document.getElementById('share-link-section').style.display = 'block';
+        } else {
+            authStatus.textContent = '📭 Offline';
+            btnsAuth.style.display = 'block';
+            btnLogout.style.display = 'none';
+            document.getElementById('share-link-section').style.display = 'none';
+        }
+    }
+
+    /**
+     * Sincroniza dados com a nuvem
+     */
+    async function sincronizarNuvem() {
+        if(!APP.isLoggedIn || !CONFIG.CLOUD_ENABLED || !db) return;
+
+        try {
+            const syncIndicator = document.getElementById('sync-status');
+            syncIndicator.classList.remove('synced');
+
+            const dados = {
+                disciplinas: APP.disciplinas,
+                notas: JSON.parse(localStorage.getItem(CONFIG.LOCAL_KEY_NOTAS) || '[]'),
+                sincronizadoEm: new Date()
+            };
+
+            await db.collection('utilizadores').doc(APP.userId).update({
+                disciplinas: APP.disciplinas,
+                notas: dados.notas,
+                sincronizadoEm: new Date()
+            });
+
+            syncIndicator.classList.add('synced');
+            console.log('☁️ Dados sincronizados com sucesso');
+        } catch(error) {
+            console.log('⚠️ Erro ao sincronizar:', error);
+        }
+    }
+
+    /**
+     * Carrega dados da nuvem
+     */
+    async function carregarDadosNuvem() {
+        if(!APP.isLoggedIn || !CONFIG.CLOUD_ENABLED || !db) return;
+
+        try {
+            const doc = await db.collection('utilizadores').doc(APP.userId).get();
+            if(doc.exists) {
+                const dados = doc.data();
+                if(dados.disciplinas) {
+                    APP.disciplinas = dados.disciplinas;
+                    localStorage.setItem(CONFIG.LOCAL_KEY_DISCIPLINAS, JSON.stringify(APP.disciplinas));
+                }
+                if(dados.notas) {
+                    localStorage.setItem(CONFIG.LOCAL_KEY_NOTAS, JSON.stringify(dados.notas));
+                }
+                renderizarDisciplinas();
+                carregarNotas();
+            }
+        } catch(error) {
+            console.log('⚠️ Erro ao carregar dados da nuvem:', error);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // COMPARTILHAMENTO COM PAIS/PROFESSORES
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Abre o modal de compartilhamento
+     */
+    function abrirModalCompartilhar() {
+        if(!APP.isLoggedIn) {
+            alert('⚠️ Faz login primeiro para compartilhar!');
+            abrirModalAuth();
+            return;
+        }
+
+        document.getElementById('modal-compartilhar').style.display = 'block';
+        gerarLinkCompartilhamento();
+        gerarQRCode();
+    }
+
+    /**
+     * Fecha o modal de compartilhamento
+     */
+    function fecharModalCompartilhar() {
+        document.getElementById('modal-compartilhar').style.display = 'none';
+    }
+
+    /**
+     * Gera o link de compartilhamento (read-only)
+     */
+    function gerarLinkCompartilhamento() {
+        if(!APP.isLoggedIn) return;
+
+        // Gerar token único
+        APP.shareToken = btoa(APP.userId + '-' + Date.now());
+        
+        // Guardar token na nuvem se disponível
+        if(CONFIG.CLOUD_ENABLED && db && APP.userId) {
+            db.collection('utilizado').doc(APP.userId).update({
+                shareTokens: firebase.firestore.FieldValue.arrayUnion(APP.shareToken)
+            }).catch(error => console.log('Erro ao guardar token:', error));
+        }
+
+        const link = `${window.location.origin}${window.location.pathname}?share=${APP.shareToken}`;
+        document.getElementById('share-link-input').value = link;
+    }
+
+    /**
+     * Gera o código QR para compartilhamento
+     */
+    function gerarQRCode() {
+        const container = document.getElementById('qr-code-container');
+        container.innerHTML = '';
+
+        const link = document.getElementById('share-link-input').value || 'https://aluno-smart.com';
+
+        // Usar QR Code Library
+        if(typeof QRCode !== 'undefined') {
+            new QRCode(container, {
+                text: link,
+                width: 200,
+                height: 200,
+                colorDark: '#4361ee',
+                colorLight: '#ffffff'
+            });
+        }
+    }
+
+    /**
+     * Copia o link de compartilhamento
+     */
+    function copiarLink() {
+        const link = document.getElementById('share-link-input');
+        link.select();
+        document.execCommand('copy');
+        alert('✅ Link copiado!');
+    }
+
+    /**
+     * Compartilha por WhatsApp
+     */
+    function compartilharWhatsApp() {
+        const link = document.getElementById('share-link-input').value;
+        const texto = `Vê as minhas notas no Aluno Smart! 📊 ${link}`;
+        const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+        window.open(url, '_blank');
+    }
+
+    /**
+     * Compartilha por Email
+     */
+    function compartilharEmail() {
+        const link = document.getElementById('share-link-input').value;
+        const texto = `Vê as minhas notas no Aluno Smart! ${link}`;
+        const subject = 'Consulta as minhas notas - Aluno Smart';
+        const url = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(texto)}`;
+        window.open(url);
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // CALENDÁRIO, TAREFAS E HORÁRIO
+    // ════════════════════════════════════════════════════════════════
+
+    let dataAtual = new Date();
+    let provas = JSON.parse(localStorage.getItem('provas') || '[]');
+    let tarefas = JSON.parse(localStorage.getItem('tarefas') || '[]');
+    let horarios = JSON.parse(localStorage.getItem('horarios') || '[]');
+
+    // Sistema de Alertas e Notificações
+    let temMudancasNaoGuardadas = false;
+    let notificacaoReprovacaoMostrada = {};
+    const INTERVALO_RECORDATORIO_GUARDAR = 5 * 60 * 1000; // 5 minutos
+    let ultimaVezGuardou = Date.now();
+
+    /**
+     * Muda entre mini-tabs (calendário, tarefas, horário)
+     */
+    function mudarMinTab(aba) {
+        document.querySelectorAll('.mini-section').forEach(s => s.style.display = 'none');
+        document.querySelectorAll('.mini-tab').forEach(t => t.classList.remove('active'));
+        
+        document.getElementById(`mini-${aba}`).style.display = 'block';
+        event.target.classList.add('active');
+
+        if(aba === 'calendario') renderizarCalendario();
+        else if(aba === 'tarefas') renderizarTarefas();
+        else if(aba === 'horario') renderizarHorario();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // CALENDÁRIO DE PROVAS
+    // ════════════════════════════════════════════════════════════════
+
+    function renderizarCalendario() {
+        const mes = dataAtual.getMonth();
+        const ano = dataAtual.getFullYear();
+        const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+        
+        document.getElementById('calendar-mes-ano').textContent = `${meses[mes]} ${ano}`;
+
+        const primeiroDia = new Date(ano, mes, 1).getDay();
+        const diasMes = new Date(ano, mes + 1, 0).getDate();
+        const diasMesAnterior = new Date(ano, mes, 0).getDate();
+
+        const diasDiv = document.getElementById('calendar-dias');
+        diasDiv.innerHTML = '';
+
+        // Dias do mês anterior
+        for(let i = primeiroDia - 1; i >= 0; i--) {
+            const div = document.createElement('div');
+            div.className = 'calendar-day other-month';
+            div.textContent = diasMesAnterior - i;
+            diasDiv.appendChild(div);
+        }
+
+        // Dias do mês atual
+        const hoje = new Date();
+        for(let dia = 1; dia <= diasMes; dia++) {
+            const div = document.createElement('div');
+            div.className = 'calendar-day';
+            div.textContent = dia;
+
+            const data = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+            
+            if(ano === hoje.getFullYear() && mes === hoje.getMonth() && dia === hoje.getDate()) {
+                div.classList.add('today');
+            }
+
+            if(provas.some(p => p.data === data)) {
+                div.classList.add('has-event');
+            }
+
+            diasDiv.appendChild(div);
+        }
+
+        // Dias do próximo mês
+        const totalCells = diasDiv.children.length;
+        const remainingCells = 42 - totalCells;
+        for(let i = 1; i <= remainingCells; i++) {
+            const div = document.createElement('div');
+            div.className = 'calendar-day other-month';
+            div.textContent = i;
+            diasDiv.appendChild(div);
+        }
+
+        renderizarProvas();
+    }
+
+    function mesAnterior() {
+        dataAtual.setMonth(dataAtual.getMonth() - 1);
+        renderizarCalendario();
+    }
+
+    function mesProximo() {
+        dataAtual.setMonth(dataAtual.getMonth() + 1);
+        renderizarCalendario();
+    }
+
+    function adicionarProva() {
+        const data = document.getElementById('prova-data').value;
+        const disciplina = document.getElementById('prova-disciplina').value;
+
+        if(!data || !disciplina) {
+            alert('⚠️ Preenche a data e a disciplina!');
+            return;
+        }
+
+        provas.push({ data, disciplina, id: Date.now() });
+        localStorage.setItem('provas', JSON.stringify(provas));
+        document.getElementById('prova-data').value = '';
+        document.getElementById('prova-disciplina').value = '';
+        renderizarCalendario();
+    }
+
+    function renderizarProvas() {
+        const lista = document.getElementById('provas-lista');
+        lista.innerHTML = '';
+
+        if(provas.length === 0) {
+            lista.innerHTML = '<p style="color: var(--text-light); text-align: center;">Sem provas marcadas</p>';
+            return;
+        }
+
+        const provasOrdenadas = [...provas].sort((a, b) => new Date(a.data) - new Date(b.data));
+        
+        provasOrdenadas.forEach(prova => {
+            const data = new Date(prova.data);
+            const dias = Math.ceil((data - new Date()) / (1000 * 60 * 60 * 24));
+            
+            const div = document.createElement('div');
+            div.style.cssText = `
+                padding: 12px;
+                background: #fee2e2;
+                border-left: 4px solid #dc2626;
+                border-radius: 8px;
+                margin-bottom: 8px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            `;
+            div.innerHTML = `
+                <div>
+                    <strong>${prova.disciplina}</strong><br>
+                    <small style="color: #666;">${data.toLocaleDateString('pt-PT')} (${dias > 0 ? dias + ' dias' : 'Hoje'})</small>
+                </div>
+                <button onclick="removerProva(${prova.id})" style="padding: 4px 8px; background: #fca5a5; color: #dc2626; border: none; border-radius: 6px; cursor: pointer;">✕</button>
+            `;
+            lista.appendChild(div);
+        });
+    }
+
+    function removerProva(id) {
+        provas = provas.filter(p => p.id !== id);
+        localStorage.setItem('provas', JSON.stringify(provas));
+        renderizarCalendario();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // TAREFAS
+    // ════════════════════════════════════════════════════════════════
+
+    function renderizarTarefas() {
+        const lista = document.getElementById('tarefas-lista');
+        lista.innerHTML = '';
+
+        // Popular dropdown de disciplinas
+        const selectDisciplina = document.getElementById('tarefa-disciplina');
+        selectDisciplina.innerHTML = '<option value="">Disciplina</option>';
+        APP.disciplinas.forEach(d => {
+            const option = document.createElement('option');
+            option.value = d.nome;
+            option.textContent = d.icon + ' ' + d.nome;
+            selectDisciplina.appendChild(option);
+        });
+
+        if(tarefas.length === 0) {
+            lista.innerHTML = '<p style="color: var(--text-light); text-align: center;">Nenhuma tarefa</p>';
+            return;
+        }
+
+        tarefas.forEach(tarefa => {
+            const div = document.createElement('div');
+            div.className = 'tarefa-item';
+            div.innerHTML = `
+                <input type="checkbox" class="tarefa-checkbox" ${tarefa.concluida ? 'checked' : ''} onchange="toggleTarefa(${tarefa.id})">
+                <div class="tarefa-info" style="${tarefa.concluida ? 'opacity: 0.5; text-decoration: line-through;' : ''}">
+                    <div class="tarefa-titulo">${tarefa.titulo}</div>
+                    <div class="tarefas-badges">
+                        <span class="badge">${tarefa.disciplina}</span>
+                        ${tarefa.prioridade === 'urgente' ? '<span class="badge urgente">⚠️ Urgente</span>' : ''}
+                    </div>
+                </div>
+                <button class="tarefa-btn" onclick="removerTarefa(${tarefa.id})">Remover</button>
+            `;
+            lista.appendChild(div);
+        });
+    }
+
+    function adicionarTarefa() {
+        const titulo = document.getElementById('tarefa-titulo').value;
+        const disciplina = document.getElementById('tarefa-disciplina').value;
+        const prioridade = document.getElementById('tarefa-prioridade').value;
+
+        if(!titulo || !disciplina) {
+            alert('⚠️ Preenche o título e a disciplina!');
+            return;
+        }
+
+        tarefas.push({ id: Date.now(), titulo, disciplina, prioridade, concluida: false });
+        localStorage.setItem('tarefas', JSON.stringify(tarefas));
+        document.getElementById('tarefa-titulo').value = '';
+        document.getElementById('tarefa-disciplina').value = '';
+        document.getElementById('tarefa-prioridade').value = 'normal';
+        renderizarTarefas();
+    }
+
+    function toggleTarefa(id) {
+        const tarefa = tarefas.find(t => t.id === id);
+        if(tarefa) {
+            tarefa.concluida = !tarefa.concluida;
+            localStorage.setItem('tarefas', JSON.stringify(tarefas));
+            renderizarTarefas();
+        }
+    }
+
+    function removerTarefa(id) {
+        tarefas = tarefas.filter(t => t.id !== id);
+        localStorage.setItem('tarefas', JSON.stringify(tarefas));
+        renderizarTarefas();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // HORÁRIO ESCOLAR
+    // ════════════════════════════════════════════════════════════════
+
+    function renderizarHorario() {
+        const lista = document.getElementById('horario-lista');
+        lista.innerHTML = '';
+
+        // Popular dropdown de disciplinas
+        const selectDisciplina = document.getElementById('horario-disciplina');
+        selectDisciplina.innerHTML = '<option value="">Disciplina</option>';
+        APP.disciplinas.forEach(d => {
+            const option = document.createElement('option');
+            option.value = d.nome;
+            option.textContent = d.icon + ' ' + d.nome;
+            selectDisciplina.appendChild(option);
+        });
+
+        if(horarios.length === 0) {
+            lista.innerHTML = '<p style="color: var(--text-light); text-align: center;">Nenhuma aula adicionada</p>';
+            return;
+        }
+
+        const diasSemana = { seg: 'Segunda', ter: 'Terça', qua: 'Quarta', qui: 'Quinta', sex: 'Sexta' };
+        const horariosPorDia = {};
+
+        horarios.forEach(h => {
+            if(!horariosPorDia[h.dia]) horariosPorDia[h.dia] = [];
+            horariosPorDia[h.dia].push(h);
+        });
+
+        Object.keys(diasSemana).forEach(dia => {
+            const aulasDodia = horariosPorDia[dia];
+            if(aulasDodia) {
+                const diaDiv = document.createElement('div');
+                diaDiv.style.marginBottom = '15px';
+                diaDiv.innerHTML = `<strong style="font-size: 14px; display: block; margin-bottom: 8px;">${diasSemana[dia]}</strong>`;
+
+                aulasDodia.sort((a, b) => a.hora.localeCompare(b.hora)).forEach(aula => {
+                    const aulaDiv = document.createElement('div');
+                    aulaDiv.className = 'horario-aula';
+                    aulaDiv.innerHTML = `
+                        <div class="horario-hora">${aula.hora}</div>
+                        <div class="horario-info">
+                            <div class="horario-disciplina">${aula.disciplina}</div>
+                            <div class="horario-sala">Sala: ${aula.sala}</div>
+                        </div>
+                        <button onclick="removerHorario(${aula.id})" style="padding: 4px 8px; background: #fee2e2; color: #dc2626; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">✕</button>
+                    `;
+                    diaDiv.appendChild(aulaDiv);
+                });
+
+                lista.appendChild(diaDiv);
+            }
+        });
+    }
+
+    function adicionarHorario() {
+        const hora = document.getElementById('horario-hora').value;
+        const disciplina = document.getElementById('horario-disciplina').value;
+        const sala = document.getElementById('horario-sala').value;
+        const dia = document.getElementById('horario-dia').value;
+
+        if(!hora || !disciplina || !sala) {
+            alert('⚠️ Preenche todos os campos!');
+            return;
+        }
+
+        horarios.push({ id: Date.now(), hora, disciplina, sala, dia });
+        localStorage.setItem('horarios', JSON.stringify(horarios));
+        document.getElementById('horario-hora').value = '';
+        document.getElementById('horario-disciplina').value = '';
+        document.getElementById('horario-sala').value = '';
+        renderizarHorario();
+    }
+
+    function removerHorario(id) {
+        horarios = horarios.filter(h => h.id !== id);
+        localStorage.setItem('horarios', JSON.stringify(horarios));
+        renderizarHorario();
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // VISUALIZAÇÃO DE NOTAS COMPARTILHADAS (READ-ONLY)
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Checa se é uma visualização compartilhada
+     */
+    function checarVisualizacaoCompartilhada() {
+        const params = new URLSearchParams(window.location.search);
+        const shareToken = params.get('share');
+
+        if(shareToken) {
+            document.getElementById('lista-disciplinas').innerHTML += '<div style="background: #eef2ff; padding: 15px; border-radius: 10px; margin-bottom: 15px; color: #4361ee;"><strong>🔒 Modo Visualização</strong> - Podes ver mas não editar as notas</div>';
+            
+            // Desabilitar inputs
+            document.addEventListener('DOMContentLoaded', () => {
+                document.querySelectorAll('input[type="number"]').forEach(input => {
+                    input.disabled = true;
+                    input.style.opacity = '0.5';
+                });
+                document.querySelectorAll('button').forEach(btn => {
+                    if(!btn.textContent.includes('Fechar')) {
+                        btn.disabled = true;
+                        btn.style.opacity = '0.5';
+                    }
+                });
+            });
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // INICIALIZAÇÃO
+    // ════════════════════════════════════════════════════════════════
+    function init() {
+        carregarDisciplinas();
+        renderizarEmojis();
+        renderizarDisciplinas();
+        carregarNotas();
+        checarVisualizacaoCompartilhada();
+        atualizarStatusAuth();
+        iniciarMonitorMudancas();
+        
+        // Fechar modais ao clicar fora
+        window.onclick = function(event) {
+            const modalAdd = document.getElementById('modal-adicionar');
+            const modalAuth = document.getElementById('modal-auth');
+            const modalShare = document.getElementById('modal-compartilhar');
+
+            if(event.target === modalAdd) {
+                fecharModal();
+            }
+            if(event.target === modalAuth) {
+                fecharModalAuth();
+            }
+            if(event.target === modalShare) {
+                fecharModalCompartilhar();
+            }
+        };
+
+        // Sincronizar dados com nuvem a cada 30 segundos
+        if(APP.isLoggedIn) {
+            setInterval(() => sincronizarNuvem(), 30000);
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // GERENCIAMENTO DE DISCIPLINAS
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Carrega as disciplinas do localStorage
+     * Se nenhuma disciplina existir, usa as disciplinas padrão
+     */
+    function carregarDisciplinas() {
+        const salvo = localStorage.getItem(CONFIG.LOCAL_KEY_DISCIPLINAS);
+        if(salvo) {
+            APP.disciplinas = JSON.parse(salvo);
+        } else {
+            APP.disciplinas = [...CONFIG.DISCIPLINAS_DEFAULT];
+            salvarDisciplinas();
+        }
+    }
+
+    /**
+     * Salva as disciplinas no localStorage
+     */
+    function salvarDisciplinas() {
+        localStorage.setItem(CONFIG.LOCAL_KEY_DISCIPLINAS, JSON.stringify(APP.disciplinas));
+    }
+
+    /**
+     * Renderiza todas as disciplinas como cards
+     */
+    function renderizarDisciplinas() {
+        const listaDiv = document.getElementById('lista-disciplinas');
+        listaDiv.innerHTML = '';
+        
+        APP.disciplinas.forEach((disc, i) => {
+            const card = document.createElement('div');
+            card.className = 'disciplina-card';
+            card.innerHTML = `
+                <button class="btn-remove" onclick="removerDisciplina(${i})" title="Remover">✕</button>
+                
+                <div class="nome-container">
+                    <div class="icon-circle">${disc.icon}</div>
+                    <span class="nome-disciplina">${disc.nome}</span>
+                </div>
+
+                <div class="inputs-grid">
+                    <div class="input-group">
+                        <label>1º Tri</label>
+                        <input type="number" id="n1-${i}" min="0" max="20" placeholder="0">
+                    </div>
+                    <div class="input-group">
+                        <label>2º Tri</label>
+                        <input type="number" id="n2-${i}" min="0" max="20" placeholder="0">
+                    </div>
+                    <div class="input-group">
+                        <label>3º Tri</label>
+                        <input type="number" id="n3-${i}" min="0" max="20" placeholder="0">
+                    </div>
+                </div>
+
+                <div class="result-bar-bg" id="bar-bg-${i}">
+                    <div class="result-bar-fill" id="bar-fill-${i}"></div>
+                </div>
+                <div class="status-text" id="status-${i}"></div>
+            `;
+            listaDiv.appendChild(card);
+        });
+
+        // Atualiza o total de disciplinas
+        document.getElementById('total-disciplinas').textContent = APP.disciplinas.length;
+    }
+
+    /**
+     * Remove uma disciplina pelo índice com confirmação
+     */
+    function removerDisciplina(index) {
+        const disc = APP.disciplinas[index];
+        if(confirm(`Remover "${disc.nome}" ${disc.icon}?`)) {
+            APP.disciplinas.splice(index, 1);
+            salvarDisciplinas();
+            renderizarDisciplinas();
+            calcularEGuardar();
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // GERENCIAMENTO DO MODAL
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Renderiza o seletor de emojis
+     */
+    function renderizarEmojis() {
+        const emojiPicker = document.getElementById('emoji-picker');
+        emojiPicker.innerHTML = '';
+        
+        CONFIG.EMOJIS_PADRAO.forEach(emoji => {
+            const btn = document.createElement('div');
+            btn.className = 'emoji-option';
+            btn.textContent = emoji;
+            btn.onclick = () => selecionarEmoji(emoji, btn);
+            emojiPicker.appendChild(btn);
+        });
+    }
+
+    /**
+     * Seleciona um emoji e atualiza UI
+     */
+    function selecionarEmoji(emoji, element) {
+        APP.emojiSelecionado = emoji;
+        
+        document.querySelectorAll('.emoji-option').forEach(el => {
+            el.classList.remove('selected');
+        });
+        
+        element.classList.add('selected');
+        document.getElementById('input-emoji-custom').value = emoji;
+    }
+
+    /**
+     * Abre o modal para adicionar disciplina
+     */
+    function abrirModal() {
+        document.getElementById('modal-adicionar').style.display = 'block';
+        document.getElementById('input-nome-disc').value = '';
+        document.getElementById('input-emoji-custom').value = '';
+        document.querySelectorAll('.emoji-option').forEach(el => el.classList.remove('selected'));
+        document.getElementById('input-nome-disc').focus();
+    }
+
+    /**
+     * Fecha o modal
+     */
+    function fecharModal() {
+        document.getElementById('modal-adicionar').style.display = 'none';
+    }
+
+    /**
+     * Adiciona uma nova disciplina
+     */
+    function adicionarDisciplina() {
+        const nome = document.getElementById('input-nome-disc').value.trim();
+        let emoji = document.getElementById('input-emoji-custom').value.trim();
+
+        // Validação
+        if(!nome) {
+            alert("⚠️ Escreve o nome da disciplina!");
+            return;
+        }
+
+        if(!emoji) {
+            emoji = APP.emojiSelecionado;
+        }
+
+        // Adiciona à lista
+        APP.disciplinas.push({ nome, icon: emoji });
+        salvarDisciplinas();
+        renderizarDisciplinas();
+        fecharModal();
+        alert(`✅ ${emoji} ${nome} adicionada com sucesso!`);
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // CÁLCULOS E DASHBOARD
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Calcula as médias e atualiza o dashboard e gráficos
+     */
+    function calcularEGuardar() {
+        const dados = [];
+        let somaMedias = 0;
+        let aprovadas = 0;
+        let totalCalculado = 0;
+        let disciplinasIncompletas = [];
+        let disciplinasReprovadas = [];
+
+        APP.disciplinas.forEach((disciplina, i) => {
+            const n1 = document.getElementById(`n1-${i}`)?.value || "";
+            const n2 = document.getElementById(`n2-${i}`)?.value || "";
+            const n3 = document.getElementById(`n3-${i}`)?.value || "";
+
+            dados.push({ n1, n2, n3 });
+
+            // Verificar se há notas incompletas
+            if((n1 !== "" || n2 !== "" || n3 !== "") && !(n1 !== "" && n2 !== "" && n3 !== "")) {
+                disciplinasIncompletas.push(disciplina.nome);
+            }
+
+            // Se tem as 3 notas, calcula
+            if(n1 !== "" && n2 !== "" && n3 !== "") {
+                const media = (parseFloat(n1) + parseFloat(n2) + parseFloat(n3)) / 3;
+                atualizarUIResultado(i, media);
+                somaMedias += media;
+                totalCalculado++;
+                if(media >= 10) aprovadas++;
+                else disciplinasReprovadas.push({ nome: disciplina.nome, media: media.toFixed(1) });
+            }
+        });
+
+        // Atualiza dashboard
+        if(totalCalculado > 0) {
+            document.getElementById('media-geral').textContent = (somaMedias / totalCalculado).toFixed(1);
+            document.getElementById('cont-aprovadas').textContent = aprovadas;
+        }
+
+        // Salva as notas
+        localStorage.setItem(CONFIG.LOCAL_KEY_NOTAS, JSON.stringify(dados));
+        
+        // Sincronizar com nuvem se autenticado
+        if(APP.isLoggedIn) {
+            sincronizarNuvem();
+        }
+        
+        // Atualiza os gráficos se a aba estiver aberta
+        const abaAtiva = document.querySelector('.analytics-section.active')?.id;
+        if(abaAtiva === 'aba-desempenho') renderizarGraficoDesempenho();
+        else if(abaAtiva === 'aba-trimestres') renderizarGraficoTrimestres();
+        else if(abaAtiva === 'aba-ranking') renderizarRanking();
+        else if(abaAtiva === 'aba-tendencia') renderizarGraficoTendencia();
+        
+        // Mostrar avisos inteligentes
+        mostrarAvisosInteligentes(disciplinasIncompletas, disciplinasReprovadas);
+        
+        // Atualizar estado
+        temMudancasNaoGuardadas = false;
+        ultimaVezGuardou = Date.now();
+        removerIndicadorMudancasNaoGuardadas();
+    }
+
+    /**
+     * Mostra avisos inteligentes sobre reprovações, notas incompletas e recordatórios
+     */
+    function mostrarAvisosInteligentes(incompletas, reprovadas) {
+        let mensagem = "";
+        
+        // Alerta 1: Reprovações
+        if(reprovadas.length > 0) {
+            const disciplinasAlerta = reprovadas.map(d => `${d.nome} (${d.media})`).join(", ");
+            mensagem += `⚠️ ATENÇÃO! REPROVAÇÃO DETECTADA!\n`;
+            mensagem += `Disciplina(s) com nota < 10: ${disciplinasAlerta}\n\n`;
+        }
+        
+        // Alerta 2: Notas Incompletas
+        if(incompletas.length > 0) {
+            const disciplinasIncompletas = incompletas.join(", ");
+            mensagem += `📝 AVISO: Notas Incompletas\n`;
+            mensagem += `${disciplinasIncompletas} não tem as 3 notas preenchidas!\n`;
+            mensagem += `Preenche todas as avaliações para cálculo correto.\n\n`;
+        }
+        
+        // Alerta 3: Guardar dados
+        mensagem += `✅ Os dados foram guardados com segurança!`;
+        
+        // Se houver algum alerta crítico, mostrar em estilo diferente
+        if(reprovadas.length > 0) {
+            mostrarNotificacaoCritica(reprovadas, incompletas);
+        }
+        
+        // Mostrar alerta padrão
+        alert(mensagem);
+    }
+
+    /**
+     * Mostra notificação crítica para reprovações em estilo mais destacado
+     */
+    function mostrarNotificacaoCritica(reprovadas, incompletas) {
+        reprovadas.forEach(disc => {
+            // Evitar mostrar a mesma reprovação múltiplas vezes
+            if(!notificacaoReprovacaoMostrada[disc.nome] || notificacaoReprovacaoMostrada[disc.nome] + 3600000 < Date.now()) {
+                notificacaoReprovacaoMostrada[disc.nome] = Date.now();
+                
+                // Tentar usar Web Notification API se disponível
+                if('Notification' in window && Notification.permission === 'granted') {
+                    new Notification('🚨 Reprovação Detectada!', {
+                        body: `${disc.nome}: média ${disc.media}\nPrecisa melhorar!`,
+                        icon: '⚠️',
+                        tag: `reprovacao-${disc.nome}`,
+                        requireInteraction: true
+                    });
+                }
+            }
+        });
+    }
+
+    /**
+     * Habilita o sistema de monitoramento de mudanças não guardadas
+     */
+    function iniciarMonitorMudancas() {
+        // Pedir permissão para notificações
+        if('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Adiciona listeners a todos os inputs de notas
+        document.querySelectorAll('input[id^="n1-"], input[id^="n2-"], input[id^="n3-"]').forEach(input => {
+            input.addEventListener('change', () => {
+                temMudancasNaoGuardadas = true;
+                mostrarIndicadorMudancasNaoGuardadas();
+            });
+        });
+        
+        // Recordatório periódico para guardar
+        setInterval(() => {
+            if(temMudancasNaoGuardadas && (Date.now() - ultimaVezGuardou) > INTERVALO_RECORDATORIO_GUARDAR) {
+                const resposta = confirm('💾 Tens mudanças não guardadas!\n\nDeseja guardar agora?');
+                if(resposta) {
+                    calcularEGuardar();
+                }
+            }
+        }, INTERVALO_RECORDATORIO_GUARDAR);
+    }
+
+    /**
+     * Mostra um indicador visual de mudanças não guardadas
+     */
+    function mostrarIndicadorMudancasNaoGuardadas() {
+        let header = document.querySelector('header');
+        if(!header.querySelector('.indicador-nao-guardado')) {
+            const ind = document.createElement('span');
+            ind.className = 'indicador-nao-guardado';
+            ind.innerHTML = '🔴 Mudanças não guardadas';
+            ind.style.cssText = `
+                position: absolute;
+                right: 20px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: #fca5a5;
+                color: #dc2626;
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+                animation: pulse 1s infinite;
+            `;
+            header.style.position = 'relative';
+            header.appendChild(ind);
+        }
+    }
+
+    /**
+     * Remove o indicador de mudanças não guardadas
+     */
+    function removerIndicadorMudancasNaoGuardadas() {
+        document.querySelector('.indicador-nao-guardado')?.remove();
+    }
+
+    /**\n     * Atualiza a barra visual e status de result para uma disciplina\n     */    function atualizarUIResultado(i, media) {
+        const barBg = document.getElementById(`bar-bg-${i}`);
+        const barFill = document.getElementById(`bar-fill-${i}`);
+        const statusTxt = document.getElementById(`status-${i}`);
+        
+        if(!barBg || !barFill || !statusTxt) return;
+
+        barBg.style.display = 'block';
+        statusTxt.style.display = 'block';
+        
+        // Calcula percentagem (0-20 valores = 0-100%)
+        const percentagem = (media / 20) * 100;
+        barFill.style.width = percentagem + "%";
+        
+        if(media >= 10) {
+            barFill.style.backgroundColor = "#4cc9f0";
+            statusTxt.innerHTML = `MÉDIA: ${media.toFixed(1)} <span class="pass">✅ APROVADO</span>`;
+        } else {
+            barFill.style.backgroundColor = "#f72585";
+            statusTxt.innerHTML = `MÉDIA: ${media.toFixed(1)} <span class="fail">❌ REPROVADO</span>`;
+        }
+    }
+
+    /**
+     * Carrega as notas guardadas
+     */
+    function carregarNotas() {
+        const salvo = localStorage.getItem(CONFIG.LOCAL_KEY_NOTAS);
+        if(salvo) {
+            const notas = JSON.parse(salvo);
+            notas.forEach((nota, i) => {
+                const n1 = document.getElementById(`n1-${i}`);
+                const n2 = document.getElementById(`n2-${i}`);
+                const n3 = document.getElementById(`n3-${i}`);
+                
+                if(n1) n1.value = nota.n1;
+                if(n2) n2.value = nota.n2;
+                if(n3) n3.value = nota.n3;
+            });
+            
+            setTimeout(() => calcularEGuardar(), 100);
+        }
+    }
+
+    /**
+     * Limpa todos os dados com confirmação
+     */
+    function limparDados() {
+        if(confirm("⚠️ Apagar TODOS os dados guardados? Esta ação não pode ser desfeita!")) {
+            localStorage.removeItem(CONFIG.LOCAL_KEY_NOTAS);
+            location.reload();
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // INICIAR APLICAÇÃO
+    // ════════════════════════════════════════════════════════════════
+    init();
+</script>
+
+</body>
+</html>
